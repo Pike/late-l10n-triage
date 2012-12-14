@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Boot2Gecko late-l10n triage</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.8.3/jquery.min.js"></script>
+    <script src="http://cdnjs.cloudflare.com/ajax/libs/datatables/1.9.4/jquery.dataTables.min.js"></script>
+    <link rel="stylesheet" href="css/jquery-ui-1.9.2.custom.min.css" type="text/css">
+    <script>
+      var bzapi = "https://api-dev.bugzilla.mozilla.org/latest/";
+      var product = "Boot2Gecko";
+      var bugs = {}, history;
+      var pending = 0;
+      $.getJSON(bzapi + "bug", {
+        product:product,
+        keywords: "late-l10n",
+        include_fields: "id,resolution,last_change_time,creation_time,cf_last_resolved,cf_blocking_basecamp,summary"
+      }, onLoadBugs);
+      function onLoadBugs(data) {
+        // sort newest first
+        var j, jj, id, bug;
+        data.bugs.sort(function(bl, br) {
+          if (bl.last_change_time < br.last_change_time) {
+            return 1;
+          }
+          if (bl.last_change_time > br.last_change_time) {
+            return -1;
+          }
+          return 0;
+        })
+        for (j=0, jj=Math.min(100, data.bugs.length); j<jj; ++j) {
+          bug = data.bugs[j];
+          id = bug.id;
+          bug.creation_time = new Date(bug.creation_time);
+          bug.last_change_time = new Date(bug.last_change_time);
+          if (bug.cf_last_resolved) {
+            bug.cf_last_resolve = new Date(bug.cf_last_resolved);
+          }
+          else {
+            delete bug.cf_last_resolved;
+          }
+          bugs[id] = data.bugs[j];
+          $.getJSON(bzapi + 'bug/' + id + '/history',
+                    processHistory(id));
+        }
+      }
+      function processHistory(id) {
+        ++pending;
+        return function(data) {
+          history = data.history;
+          var j, jj, k, kk, changes, change;
+          for (j=data.history.length - 1; j >= 0; --j) {
+            changes = data.history[j].changes;
+            for (k = changes.length - 1; k >= 0; --k) {
+              change = changes[k];
+              if (change.field_name == 'keywords' && change.added == 'late-l10n') {
+                bugs[id].late_l10n = new Date(data.history[j].change_time);
+                maybeDoTable(id);
+                return;
+              }
+            }
+          }
+          // we've had late-l10n from the start, use that
+          bugs[id].late_l10n = bugs[id].creation_time;
+          maybeDoTable(id);
+        }
+      }
+      $(function () {
+        $("#bugz").dataTable({
+          "bJQueryUI": true
+        });
+      });
+      function maybeDoTable(id) {
+        var tbl = [], bug = bugs[id];
+        $("#bugz").dataTable().fnAddData([bug.id, bug.summary, bug.resolution, bug.creation_time, bug.late_l10n, bug.cf_blocking_basecamp]);
+      }
+    </script>
+  </head>
+  <body>
+    <h1>Boot2Gecko late-l10n triage</h1>
+    <table id='bugz' style='width:100%'>
+      <thead>
+        <tr>
+          <th>Bug</th>
+          <th>Summary</th>
+          <th>Resolution</th>
+          <th>Filed at</th>
+          <th>late-l10n</th>
+          <th>basecamp</th>
+        </tr>
+      </thead>
+    </table>
+  </body>
+</html>
