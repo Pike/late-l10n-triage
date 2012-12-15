@@ -33,11 +33,9 @@
           bug.creation_time = new Date(bug.creation_time);
           bug.last_change_time = new Date(bug.last_change_time);
           if (bug.cf_last_resolved) {
-            bug.cf_last_resolve = new Date(bug.cf_last_resolved);
+            bug.cf_last_resolved = new Date(bug.cf_last_resolved.split(" ", 1));
           }
-          else {
-            delete bug.cf_last_resolved;
-          }
+          if (bug.resolution=="") bug.resolution="OPEN";
           bugs[id] = data.bugs[j];
           $.getJSON(bzapi + 'bug/' + id + '/history',
                     processHistory(id));
@@ -66,12 +64,17 @@
       }
       $(function () {
         $("#bugz").dataTable({
-          "bJQueryUI": true
+          "bJQueryUI": true,
+          "bPaginate": false,
+          "fnRowCallback": function( nRow, aData, iDisplayIndex ) {
+            var inner = $('<a></a>').attr('href', 'https://bugzilla.mozilla.org/show_bug.cgi?id=' + aData[0]).text(aData[0]);
+            $('td:eq(0)', nRow).html(inner);
+          }
         });
       });
       function maybeDoTable(id) {
         var tbl = [], bug = bugs[id];
-        $("#bugz").dataTable().fnAddData([bug.id, bug.summary, bug.resolution, bug.creation_time, bug.late_l10n, bug.cf_blocking_basecamp]);
+        $("#bugz").dataTable().fnAddData([bug.id, bug.summary, bug.resolution, bug.cf_last_resolved, bug.creation_time, bug.late_l10n, bug.cf_blocking_basecamp]);
       }
     </script>
   </head>
@@ -83,6 +86,7 @@
           <th>Bug</th>
           <th>Summary</th>
           <th>Resolution</th>
+          <th>Last FIXED</th>
           <th>Filed at</th>
           <th>late-l10n</th>
           <th>basecamp</th>
