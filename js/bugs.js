@@ -2,12 +2,31 @@
  * License, v. 2.0. If a copy of the MPL was not distributed with this
  * file, You can obtain one at http://mozilla.org/MPL/2.0/. */
 
+/*
+ * Get bugs for late-l10n keyword for one product, Boot2Gecko
+ * It then goes off to the history of those bugs to see when
+ * the keyword was added last.
+ * Uses indexedDB to cache that result
+ */
+
 var bzapi = "https://api-dev.bugzilla.mozilla.org/latest/";
 var product = "Boot2Gecko";
 var bugs = {}, history;
 var pending = 0;
 var lates = [], allbugs = [], fixed = [], nonfixed = [];
 var gdata = [];
+var db, dbrequest = window.indexedDB.open('bugzilla', 1);
+dbrequest.onupgradeneeded = function(event) {
+    db = event.target.result;
+    db.createObjectStore("history", {keyPath: 'id'});
+    //console.log('upgrade', db)
+};
+dbrequest.onsuccess = function(event) {
+    db = event.target.result;
+    //console.log('success', db)
+};
+dbrequest.onerror = console.debug;
+
 $.getJSON(bzapi + "bug", {
     product:product,
     keywords: "late-l10n",
@@ -36,9 +55,48 @@ function onLoadBugs(data) {
             bug.cf_last_resolved = new Date(bug.cf_last_resolved.split(" ", 1));
         }
         if (bug.resolution==="") bug.resolution="OPEN";
-        bugs[id] = data.bugs[j];
-        $.getJSON(bzapi + 'bug/' + id + '/history',
-                  processHistory(id));
+        bugs[id] = bug;
+        getHistory(bug);
+    }
+}
+function getHistory(bug) {
+    // try indexedDB first
+    var historyCallBack = processHistory(bug.id);
+    if (db && db.transaction) {
+        var transaction = db.transaction(["history"]);
+        var objectStore = transaction.objectStore("history");
+        var request = objectStore.get(bug.id);
+        request.onerror = getUpstream;
+        request.onsuccess = function(event) {
+            //console.log('indexeddb history success', request);
+            var cached = request.result;
+            if (cached === undefined ||
+                (cached.last_change_time < bug.last_change_time)) {
+                getUpstream();
+            }
+            else {
+                historyCallBack(cached.history);
+            }
+        }
+    }
+    else {
+        getUpstream();
+    }
+    function getUpstream() {
+        $.getJSON(bzapi + 'bug/' + bug.id + '/history',
+                  cacheAndProcessHistory);
+        function cacheAndProcessHistory(data) {
+            historyCallBack(data);
+            if (db && db.transaction) {
+                bug.history = data;
+                var req = db.transaction(["history"], "readwrite")
+                    .objectStore("history")
+                    .put(bug);
+                //req.onsuccess = function(event) {
+                //    console.log('indexedDB cached history', event);
+                //}
+            }
+        }
     }
 }
 function processHistory(id) {
