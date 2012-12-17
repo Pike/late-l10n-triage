@@ -54,6 +54,14 @@ function onLoadBugs(data) {
         if (bug.cf_last_resolved) {
             bug.cf_last_resolved = new Date(bug.cf_last_resolved.split(" ", 1));
         }
+        if (bug.cf_blocking_basecamp) {
+            bug.cf_blocking_basecamp = {
+                '-': "bb-",
+                '+': "bb+",
+                '?': "bb?",
+                '---': '---'
+            }[bug.cf_blocking_basecamp]
+        }
         if (bug.resolution==="") bug.resolution="OPEN";
         bugs[id] = bug;
         getHistory(bug);
