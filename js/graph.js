@@ -35,6 +35,7 @@ var svg = d3.select("#burndown").append("svg")
     .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 var data;
 function doD3() {
+    var now = new Date();
     lates.sort(d3.ascending); allbugs.sort(d3.ascending); fixed.sort(d3.ascending); nonfixed.sort(d3.ascending);
     gdata.sort(function(ld, rd) {return d3.ascending(ld.date, rd.date);});
     data = [
@@ -57,6 +58,12 @@ function doD3() {
             color: 'grey',
             "class": "non_fixed",
             values: []
+        },
+        {
+            color: 'black',
+            "class": "x_axis",
+            values: [{date: allbugs[0], count: 0},
+                     {date: now, count: 0}]
         }
     ], fixed_ = 0;
     gdata.forEach(function(d) {
@@ -80,9 +87,9 @@ function doD3() {
               data[2].values.push({date:d.date, count:data[1].values.length-fixed_});
       }
     });
-    var now = new Date();
     x.domain([allbugs[0], now]);
-    y.domain([-nonfixed.length, allbugs.length]);
+    y.domain([Math.floor(-nonfixed.length/10)*10,
+              Math.ceil(allbugs.length/10)*10]);
     data[0].values.push({date:now, count:data[0].values.length-data[3].values.length});
     data[1].values.push({date:now, count:data[1].values.length-data[3].values.length});
     data[2].values.push({date:now, count:data[1].values.length-fixed_-1});
