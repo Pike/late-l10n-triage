@@ -117,7 +117,7 @@ function processHistory(id) {
             for (k = changes.length - 1; k >= 0; --k) {
                 change = changes[k];
                 if (change.field_name == 'keywords' &&
-                    change.added == 'late-l10n') {
+                    change.added.indexOf('late-l10n') > -1) {
                     bugs[id].late_l10n = new Date(data.history[j].change_time);
                     maybeDoTable(id);
                     return;
