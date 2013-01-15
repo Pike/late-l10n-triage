@@ -31,7 +31,7 @@ $.getJSON(bzapi + "bug", {
     product:product,
     keywords: "late-l10n",
     include_fields: "id,resolution,last_change_time,creation_time," +
-        "cf_last_resolved,cf_blocking_basecamp,summary"
+        "cf_last_resolved,cf_blocking_basecamp,cf_blocking_b2g,summary"
 }, onLoadBugs);
 
 function onLoadBugs(data) {
@@ -112,20 +112,26 @@ function processHistory(id) {
     return function(data) {
         history = data.history;
         var j, jj, k, kk, changes, change;
+        var basecamps = [];
         for (j=data.history.length - 1; j >= 0; --j) {
             changes = data.history[j].changes;
             for (k = changes.length - 1; k >= 0; --k) {
                 change = changes[k];
                 if (change.field_name == 'keywords' &&
-                    change.added.indexOf('late-l10n') > -1) {
+                    change.added.indexOf('late-l10n') > -1 &&
+                    !bugs[id].late_l10n) {
                     bugs[id].late_l10n = new Date(data.history[j].change_time);
-                    maybeDoTable(id);
-                    return;
+                }
+                if (change.field_name == 'cf_blocking_basecamp' &&
+                    bugs[id].cf_blocking_basecamp == 'bb+' &&
+                    bugs[id].last_blocking_basecamp === undefined &&
+                    change.added == '+') {
+                    bugs[id].last_blocking_basecamp = data.history[j].change_time;
                 }
             }
         }
         // we've had late-l10n from the start, use that
-        bugs[id].late_l10n = bugs[id].creation_time;
+        bugs[id].late_l10n = bugs[id].late_l10n || bugs[id].creation_time;
         maybeDoTable(id);
     };
 }
@@ -149,7 +155,7 @@ function maybeDoTable(id) {
     $("#bugz").dataTable()
         .fnAddData([bug.id, bug.summary, bug.resolution, bug.cf_last_resolved,
                     bug.creation_time, bug.late_l10n,
-                    bug.cf_blocking_basecamp]);
+                    bug.cf_blocking_basecamp, bug.cf_blocking_b2g]);
     lates.push(bug.late_l10n);
     allbugs.push(bug.creation_time);
     gdata.push({date: bug.creation_time, event:'creation', id: id});
