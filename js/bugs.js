@@ -9,7 +9,7 @@
  * Uses indexedDB to cache that result
  */
 
-var bzapi = "https://api-dev.bugzilla.mozilla.org/latest/";
+var bzapi = "https://bugzilla.mozilla.org/bzapi/";
 var product = "Boot2Gecko";
 var bugs = {}, history;
 var pending = 0;
